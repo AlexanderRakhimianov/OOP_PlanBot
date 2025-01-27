@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
+import java.util.List;
 
 public class TelegramBot extends TelegramLongPollingBot {
     private String botUsername;
@@ -24,6 +25,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final Map<String, BiConsumer<String, StringBuilder>> commandMap = new HashMap<>();
     private final StringBuilder helpText = new StringBuilder();
 
+    private TaskStorage taskStorage = new TaskStorage(); // список задач
 
     public TelegramBot() {
         loadConfig();
@@ -41,33 +43,66 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+
+    /*
     // метод для регистрации команды
     public void registerCommand(String command, String description, BiConsumer<String, StringBuilder> action) {
         commandMap.put(command, action);
         helpText.append(command).append(" - ").append(description).append("\n");
     }
+    */
+
+
+    // метод для регистрации команды
+    public void registerCommand(String commandPrefix, String description, BiConsumer<String, StringBuilder> action) {
+        commandMap.put(commandPrefix, action);
+        helpText.append(commandPrefix).append(" - ").append(description).append("\n");
+    }
 
     private void registerDefaultCommands() {
-        registerCommand("/start", "начало работы с ботом", (chatId, builder) -> {
+        registerCommand("/start", "начало работы с ботом", (message, builder) -> {
             builder.append("Добро пожаловать! Используйте /help для списка команд.");
         });
 
-        registerCommand("/authors", "информация об авторах", (chatId, builder) -> {
+        registerCommand("/authors", "информация об авторах", (message, builder) -> {
             builder.append("Бота разработали студенты матмеха УрФУ:\n" +
-                    "Рахимянов Александр - @rakhiimianov;\n" +
-                    "Владимир Ершов - @normVovan4ik;\n" +
-                    "Никита Витров - @militory.");
+                    "Рахимянов Александр - @rakhiimianov\n" +
+                    "Владимир Ершов - @normVovan4ik\n" +
+                    "Никита Витров - @militory");
         });
 
-        registerCommand("/help", "список команд", (chatId, builder) -> {
+        registerCommand("/help", "список команд", (message, builder) -> {
             builder.append("Доступные команды:\n").append(helpText.toString());
         });
 
-        registerCommand("/info", "информация о боте", (chatId, builder) -> {
+        registerCommand("/info", "информация о боте", (message, builder) -> {
             builder.append("Инструмент для планирования и управления задачами:\n" +
                     "Бот может анализировать ваш календарь, список дел и напоминать о важных событиях, помогать планировать встречи, ставить задачи и отслеживать прогресс.");
         });
+
+        registerCommand("/addtask", "добавить задачу", (message, builder) -> {
+            String taskDescription = message.substring("/addtask".length()).trim();
+            System.out.println(taskDescription);
+
+            if (taskDescription.isEmpty()) {
+                builder.append("Пожалуйста, введите описание задачи после команды /addtask.");
+                return;
+            }
+            Task newTask = new Task(taskDescription);
+            taskStorage.addTask(newTask);
+            builder.append("Задача добавлена: ").append(newTask.getDescription()).append("\n");
+
+            if (taskStorage.hasTasks()) {
+                builder.append("Текущие задачи:\n");
+                List<Task> tasks = taskStorage.getAllTasks();
+                for (int i = 0; i < tasks.size(); i++) {
+                    builder.append(i + 1).append(". ").append(tasks.get(i)).append("\n");
+                }
+            }
+
+        });
     }
+
     @Override
     public String getBotUsername() {
         return botUsername;
@@ -78,6 +113,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         return botToken;
     }
 
+
+    /*
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
@@ -97,6 +134,35 @@ public class TelegramBot extends TelegramLongPollingBot {
             sendMsg(chatId, responseBuilder.toString());
         }
     }
+     */
+
+
+    @Override
+    public void onUpdateReceived(Update update) {
+        if (update.hasMessage() && update.getMessage().hasText()) {
+            String message = update.getMessage().getText();
+            long chatId_l = update.getMessage().getChatId();
+            StringBuilder responseBuilder = new StringBuilder();
+
+            boolean commandFound = false;
+            for(Map.Entry<String, BiConsumer<String, StringBuilder>> entry : commandMap.entrySet()){
+                String commandPrefix = entry.getKey();
+                if(message.startsWith(commandPrefix)){
+                    entry.getValue().accept(message, responseBuilder);
+                    commandFound = true;
+                    break;
+                }
+            }
+
+            if (!commandFound) {
+                responseBuilder.append("Неизвестная команда, используйте /help для просмотра списка команд");
+            }
+            Long chatId = chatId_l;
+            sendMsg(chatId.toString(), responseBuilder.toString());
+        }
+    }
+
+
     // Метод для отправки сообщений
     private void sendMsg(String chatId, String text) {
         SendMessage message = new SendMessage();
