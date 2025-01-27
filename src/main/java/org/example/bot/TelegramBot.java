@@ -25,9 +25,12 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final Map<String, BiConsumer<String, StringBuilder>> commandMap = new HashMap<>();
     private final StringBuilder helpText = new StringBuilder();
 
-    private TaskStorage taskStorage = new TaskStorage(); // список задач
+    // private TaskStorage taskStorage = new TaskStorage(); // список задач
+    private SQLiteManager sqliteManager = new SQLiteManager();
+
 
     public TelegramBot() {
+        sqliteManager.createTable();
         loadConfig();
         registerDefaultCommands(); // тут регистрация команд по умолчанию
     }
@@ -42,15 +45,6 @@ public class TelegramBot extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
-
-
-    /*
-    // метод для регистрации команды
-    public void registerCommand(String command, String description, BiConsumer<String, StringBuilder> action) {
-        commandMap.put(command, action);
-        helpText.append(command).append(" - ").append(description).append("\n");
-    }
-    */
 
 
     // метод для регистрации команды
@@ -82,25 +76,103 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         registerCommand("/addtask", "добавить задачу", (message, builder) -> {
             String taskDescription = message.substring("/addtask".length()).trim();
-            System.out.println(taskDescription);
-
             if (taskDescription.isEmpty()) {
                 builder.append("Пожалуйста, введите описание задачи после команды /addtask.");
                 return;
             }
             Task newTask = new Task(taskDescription);
-            taskStorage.addTask(newTask);
+            sqliteManager.addTask(newTask);
             builder.append("Задача добавлена: ").append(newTask.getDescription()).append("\n");
 
-            if (taskStorage.hasTasks()) {
+            if (sqliteManager.hasTasks()) {
                 builder.append("Текущие задачи:\n");
-                List<Task> tasks = taskStorage.getAllTasks();
-                for (int i = 0; i < tasks.size(); i++) {
+                List<Task> tasks = sqliteManager.getAllTasks();
+                for(int i = 0; i < tasks.size(); i++){
                     builder.append(i + 1).append(". ").append(tasks.get(i)).append("\n");
                 }
             }
-
         });
+
+        registerCommand("/viewtasks", "показать все задачи", (message, builder) -> {
+            if(sqliteManager.hasTasks()) {
+                builder.append("Текущие задачи:\n");
+                List<Task> tasks = sqliteManager.getAllTasks();
+                for (int i = 0; i < tasks.size(); i++){
+                    builder.append(i + 1).append(". ").append(tasks.get(i)).append("\n");
+                }
+            } else {
+                builder.append("У вас нет задач.");
+            }
+        });
+
+        registerCommand("/done", "отметить задачу как выполненную", (message, builder) -> {
+            String indexStr = message.substring("/done".length()).trim();
+            try{
+                int index = Integer.parseInt(indexStr);
+                int taskId = sqliteManager.getTaskId(index);
+                if(taskId == -1){
+                    builder.append("Задачи с таким индексом не существует.");
+                    return;
+                }
+
+                if (sqliteManager.getTaskById(taskId).isCompleted())
+                {
+                    builder.append("Задача ").append(index).append(" и так выполнена").append("\n");
+                }
+                else {
+                    sqliteManager.markTaskAsCompleted(taskId);
+                    builder.append("Задача ").append(index).append(" отмечена как выполненная").append("\n");
+                }
+
+                if (sqliteManager.hasTasks()) {
+                    builder.append("Текущие задачи:\n");
+                    List<Task> tasks = sqliteManager.getAllTasks();
+                    for(int i = 0; i < tasks.size(); i++){
+                        builder.append(i + 1).append(". ").append(tasks.get(i)).append("\n");
+                    }
+                }
+
+            } catch (NumberFormatException e) {
+                if (message.equals("/done"))
+                {
+                    builder.append("Пожалуйтса, введите номер задачи после команды /done.");
+                }
+                else {
+                    builder.append("Неверный формат индекса.");
+                }
+            }
+        });
+
+        registerCommand("/remove", "удалить задачу", (message, builder) -> {
+            String indexStr = message.substring("/remove".length()).trim();
+            try {
+                int index = Integer.parseInt(indexStr);
+                int taskId = sqliteManager.getTaskId(index);
+                if(taskId == -1){
+                    builder.append("Задачи с таким индексом не существует.");
+                    return;
+                }
+                sqliteManager.removeTask(taskId);
+                builder.append("Задача ").append(index).append(" удалена").append("\n");
+                if (sqliteManager.hasTasks()) {
+                    builder.append("Текущие задачи:\n");
+                    List<Task> tasks = sqliteManager.getAllTasks();
+                    for(int i = 0; i < tasks.size(); i++){
+                        builder.append(i + 1).append(". ").append(tasks.get(i)).append("\n");
+                    }
+                }
+            } catch (NumberFormatException e) {
+                if (message.equals("/remove"))
+                {
+                    builder.append("Пожалуйтса, введите номер задачи после команды /remove.");
+                }
+                else {
+                    builder.append("Неверный формат индекса.");
+                }
+            }
+        });
+
+
     }
 
     @Override
@@ -112,29 +184,6 @@ public class TelegramBot extends TelegramLongPollingBot {
     public String getBotToken() {
         return botToken;
     }
-
-
-    /*
-    @Override
-    public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            Message message = update.getMessage();
-            String text = message.getText();
-            String chatId = message.getChatId().toString();
-
-            // Выполняем команду
-            BiConsumer<String, StringBuilder> action = commandMap.getOrDefault(text, (id, builder) -> {
-                builder.append("Неизвестная команда. Используйте /help для списка команд.");
-            });
-
-            StringBuilder responseBuilder = new StringBuilder();
-            action.accept(chatId, responseBuilder);
-
-            // Отправка сообщения пользователю
-            sendMsg(chatId, responseBuilder.toString());
-        }
-    }
-     */
 
 
     @Override
