@@ -24,13 +24,18 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final Map<String, TriConsumer<String, Long, StringBuilder>> commandMap = new HashMap<>();
     private final StringBuilder helpText = new StringBuilder();
 
-    private SQLiteManager sqliteManager = new SQLiteManager();
+    private SQLiteManager sqliteManager;
 
 
-    public TelegramBot() {
-        sqliteManager.createTable();
+    public TelegramBot(SQLiteManager sqliteManager) {
+        this.sqliteManager = sqliteManager;
+        this.sqliteManager.createTable();
         loadConfig();
         registerDefaultCommands(); // тут регистрация команд по умолчанию
+    }
+
+    public TelegramBot() {
+        this(new SQLiteManager());
     }
 
     private void loadConfig() {
@@ -165,6 +170,23 @@ public class TelegramBot extends TelegramLongPollingBot {
                 }
             }
         });
+
+        registerCommand("/removeall", "удалить все задачи", (message, chatId, builder) -> {
+            final int index = 1;
+            int taskId = sqliteManager.getTaskId(index, chatId);
+            if (taskId == -1)
+            {
+                builder.append("У вас и так нет задач.");
+                return;
+            }
+            while (taskId != -1)
+            {
+                sqliteManager.removeTask(taskId, chatId);
+                taskId = sqliteManager.getTaskId(index, chatId);
+            }
+            builder.append("Все задачи удалены.");
+        });
+
         /*
         registerCommand("/show ", "показать описание задачи", (message, chatId, builder) -> {
             String indexStr = message.substring("/show ".length()).trim();

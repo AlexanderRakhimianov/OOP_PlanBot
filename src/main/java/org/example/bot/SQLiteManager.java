@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class SQLiteManager {
-    private static final String DATABASE_URL = "jdbc:sqlite:tasks.db";
+    private static String DATABASE_URL = "jdbc:sqlite:tasks.db";
 
     // Метод для создания подключения к БД
     private Connection getConnection() throws SQLException {
@@ -26,6 +26,16 @@ public class SQLiteManager {
             System.out.println(e.getMessage());
         }
     }
+
+    public SQLiteManager(String databaseURL){
+        DATABASE_URL = databaseURL;
+        createTable();
+        System.out.println("Таблица создана успешно.");
+    }
+    public SQLiteManager(){
+    }
+
+
     // метод для добавления задачи
     public void addTask(Task task) {
         String sql = "INSERT INTO tasks(description, completed, chatId) VALUES(?,?,?)";
