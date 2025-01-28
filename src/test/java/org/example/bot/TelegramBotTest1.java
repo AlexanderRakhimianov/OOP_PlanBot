@@ -31,15 +31,17 @@ public class TelegramBotTest1 {
     public void testUnknownCommand() {
         // проверка для несуществующей команды
         StringBuilder helpText = new StringBuilder();
-        bot.getCommandMap().getOrDefault("/fake", (chatId, builder) -> assertTrue(true, "Команда не существует"))
-                .accept("chatId", helpText);
+        Long Id = 0L;
+        bot.getCommandMap().getOrDefault("/fake", (message, chatId, builder) -> assertTrue(true, "Команда не существует"))
+                .accept("chatId", Id, helpText);
     }
 
     @Test
     public void testHelpCommand() {
         // проверяем, что команда /help выводит корректный список команд
         StringBuilder helpText = new StringBuilder();
-        bot.getCommandMap().get("/help").accept("chatId", helpText);
+        Long Id = 0L;
+        bot.getCommandMap().get("/help").accept("chatId", Id, helpText);
 
         // проверяем, что список команд содержит команду /start
         assertTrue(helpText.toString().contains("/start"), "Список команд должен содержать команду /start");

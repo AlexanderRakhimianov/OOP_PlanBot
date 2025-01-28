@@ -3,10 +3,12 @@ package org.example.bot;
 public class Task {
     private String description;
     private boolean completed;
+    private long chatId; // Добавили chatId пользователя
 
-    public Task(String description) {
+    public Task(String description, long chatId) {
         this.description = description;
-        this.completed = false; // По умолчанию задача не выполнена
+        this.completed = false;
+        this.chatId = chatId;
     }
 
     public String getDescription() {
@@ -23,6 +25,14 @@ public class Task {
 
     public void setCompleted(boolean completed) {
         this.completed = completed;
+    }
+
+    public long getChatId() {
+        return chatId;
+    }
+
+    public void setChatId(long chatId) {
+        this.chatId = chatId;
     }
 
     @Override
