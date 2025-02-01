@@ -1,8 +1,11 @@
 package org.example.bot;
 
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
+
+import java.time.format.DateTimeFormatter;
 
 public class SQLiteManager {
     private static String DATABASE_URL = "jdbc:sqlite:tasks.db";
@@ -16,7 +19,8 @@ public class SQLiteManager {
                 + " id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
                 + " description TEXT NOT NULL,\n"
                 + " completed INTEGER NOT NULL,\n"
-                + " chatId INTEGER NOT NULL\n" // Добавили поле chatId
+                + " chatId INTEGER NOT NULL,\n" // Добавили поле chatId
+                + " dueDate TEXT\n"
                 + ");";
 
         try (Connection conn = getConnection();
@@ -38,28 +42,49 @@ public class SQLiteManager {
 
     // метод для добавления задачи
     public void addTask(Task task) {
-        String sql = "INSERT INTO tasks(description, completed, chatId) VALUES(?,?,?)";
+        String sql = "INSERT INTO tasks(description, completed, chatId, dueDate) VALUES(?,?,?,?)";
         try(Connection conn = getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql)){
             pstmt.setString(1, task.getDescription());
             pstmt.setInt(2, task.isCompleted() ? 1: 0);
             pstmt.setLong(3, task.getChatId());
+            pstmt.setString(4, task.getDate().format(DateTimeFormatter.ISO_DATE));
             pstmt.executeUpdate();
             System.out.println("Задача добавлена");
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
     }
+
+
+    // метод для изменения описания и даты задачи
+    public void editTask(int index, long chatId, String description, LocalDate date) {
+        String sql = "UPDATE tasks SET description = ?, dueDate = ? WHERE id = ? AND chatId = ?";
+        try(Connection conn = getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)){
+            pstmt.setString(1, description);
+            pstmt.setString(2, date.format(DateTimeFormatter.ISO_DATE));
+            pstmt.setInt(3, index);
+            pstmt.setLong(4, chatId);
+            pstmt.executeUpdate();
+            System.out.println("Задача обновлена");
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+
+
     // метод для получения всех задач из бд
     public List<Task> getAllTasks(long chatId) {
-        String sql = "SELECT id, description, completed FROM tasks WHERE chatId = ?"; // добавили фильтр по chatId
+        String sql = "SELECT id, description, completed, dueDate FROM tasks WHERE chatId = ?"; // добавили фильтр по chatId
         List<Task> taskList = new ArrayList<>();
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)){
             pstmt.setLong(1, chatId);
             ResultSet rs = pstmt.executeQuery();
             while(rs.next()){
-                Task task = new Task(rs.getString("description"), chatId);
+                Task task = new Task(rs.getString("description"), chatId, LocalDate.parse(rs.getString("dueDate")));
                 task.setCompleted(rs.getInt("completed") == 1);
                 taskList.add(task);
             }
@@ -69,7 +94,6 @@ public class SQLiteManager {
         return taskList;
     }
 
-    // метод для изменения статуса задачи
     // метод для изменения статуса задачи
     public void markTaskAsCompleted(int index, long chatId) {
         String sql = "UPDATE tasks SET completed = ? WHERE id = ? AND chatId = ?";
@@ -84,7 +108,6 @@ public class SQLiteManager {
             System.out.println(e.getMessage());
         }
     }
-    //Метод для удаления задачи
     //Метод для удаления задачи
     public void removeTask(int index, long chatId){
         String sql = "DELETE FROM tasks WHERE id = ? AND chatId = ?";
@@ -119,9 +142,8 @@ public class SQLiteManager {
     }
 
     // метод для получения задачи по id
-    // метод для получения задачи по id
     public Task getTaskById(int id, long chatId) {
-        String sql = "SELECT description, completed FROM tasks WHERE id = ? AND chatId = ?";
+        String sql = "SELECT description, completed, dueDate FROM tasks WHERE id = ? AND chatId = ?";
         Task task = null;
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)){
@@ -129,7 +151,7 @@ public class SQLiteManager {
             pstmt.setLong(2, chatId);
             ResultSet rs = pstmt.executeQuery();
             if(rs.next()){
-                task = new Task(rs.getString("description"), chatId);
+                task = new Task(rs.getString("description"), chatId, LocalDate.parse(rs.getString("dueDate")));
                 task.setCompleted(rs.getInt("completed") == 1);
             }
         }  catch (SQLException e) {

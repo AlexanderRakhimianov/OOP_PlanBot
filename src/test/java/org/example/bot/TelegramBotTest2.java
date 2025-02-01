@@ -14,6 +14,7 @@ public class TelegramBotTest2 {
 
     private TelegramBot bot; // наш бот
     private SQLiteManager testSqliteManager;
+    private SQLiteLocationManager testLocationManager;
 
     @BeforeEach
     public void setUp() {
@@ -28,7 +29,8 @@ public class TelegramBotTest2 {
             }
         }
         testSqliteManager = new SQLiteManager("jdbc:sqlite:test_tasks.db");
-        bot = new TelegramBot(testSqliteManager);
+        testLocationManager = new SQLiteLocationManager("jdbc:sqlite:test_tasks.db");
+        bot = new TelegramBot(testSqliteManager, testLocationManager);
     }
 
 
