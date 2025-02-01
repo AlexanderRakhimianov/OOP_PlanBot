@@ -1,14 +1,18 @@
 package org.example.bot;
 
+import java.time.LocalDate;
+
 public class Task {
     private String description;
     private boolean completed;
     private long chatId; // Добавили chatId пользователя
+    private LocalDate date;
 
-    public Task(String description, long chatId) {
+    public Task(String description, long chatId, LocalDate date) {
         this.description = description;
         this.completed = false;
         this.chatId = chatId;
+        this.date = date;
     }
 
     public String getDescription() {
@@ -33,6 +37,10 @@ public class Task {
 
     public void setChatId(long chatId) {
         this.chatId = chatId;
+    }
+
+    public LocalDate getDate(){
+        return this.date;
     }
 
     @Override
