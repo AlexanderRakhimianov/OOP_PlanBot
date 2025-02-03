@@ -29,6 +29,11 @@ import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.DateTimeException;
 
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+
+
 public class TelegramBot extends TelegramLongPollingBot {
     private String botUsername;
     private String botToken;
@@ -343,35 +348,74 @@ public class TelegramBot extends TelegramLongPollingBot {
             long chatId = update.getMessage().getChatId();
             StringBuilder responseBuilder = new StringBuilder();
 
+            ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+            List<KeyboardRow> keyboard = new ArrayList<>();
+            KeyboardRow row = new KeyboardRow();
+
+            KeyboardButton allTasksButton = new KeyboardButton();
+            allTasksButton.setText("Все задачи");
+
+            KeyboardButton dateTasksButton = new KeyboardButton();
+            dateTasksButton.setText("Задачи на сегодня");
+
+            KeyboardButton helpButton = new KeyboardButton();
+            helpButton.setText("Помощь");
+
+            row.add(allTasksButton);
+            row.add(dateTasksButton);
+            row.add(helpButton);
+            keyboard.add(row);
+            keyboardMarkup.setKeyboard(keyboard);
+            keyboardMarkup.setResizeKeyboard(true);
+
             boolean commandFound = false;
-            for (Map.Entry<String, TriConsumer<String, Long, StringBuilder>> entry : commandMap.entrySet()) {
-                String commandPrefix = entry.getKey();
-                if (message.startsWith(commandPrefix)) {
-                    entry.getValue().accept(message, chatId, responseBuilder);
-                    commandFound = true;
-                    break;
+            if (message.equals("Все задачи")) {
+                commandMap.get("/alltasks").accept(message, chatId, responseBuilder);
+                commandFound = true;
+            } else if (message.equals("Задачи на сегодня")) {
+                commandMap.get("/datetasks").accept(message, chatId, responseBuilder);
+                commandFound = true;
+            } else if (message.equals("Помощь")) {
+                commandMap.get("/help").accept(message, chatId, responseBuilder);
+                commandFound = true;
+            } else {
+                for (Map.Entry<String, TriConsumer<String, Long, StringBuilder>> entry : commandMap.entrySet()) {
+                    String commandPrefix = entry.getKey();
+                    if (message.startsWith(commandPrefix)) {
+                        entry.getValue().accept(message, chatId, responseBuilder);
+                        commandFound = true;
+                        break;
+                    }
                 }
             }
 
             if (!commandFound) {
                 responseBuilder.append("Неизвестная команда, используйте /help для просмотра списка команд");
             }
-            sendMsg(String.valueOf(chatId), responseBuilder.toString());
+            sendMsg(String.valueOf(chatId), responseBuilder.toString(), keyboardMarkup);
         }
     }
 
-    // Метод для отправки сообщений
-    public void sendMsg(String chatId, String text) {
+
+    // Метод для отправки сообщений (с клавиатурой)
+    public void sendMsg(String chatId, String text, ReplyKeyboardMarkup keyboardMarkup) {
         if (text.isEmpty()) {return;}
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(text);
+        if (keyboardMarkup != null) {
+            message.setReplyMarkup(keyboardMarkup);
+        }
         try {
             execute(message); // Отправляем сообщение
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
+    } // Отправка сообщений без аргумента клавиатуры (перегрузка)
+    public void sendMsg(String chatId, String text) {
+        sendMsg(chatId, text, null);
     }
+
     public Map<String, TriConsumer<String, Long, StringBuilder>> getCommandMap() {
         return commandMap;
     }
